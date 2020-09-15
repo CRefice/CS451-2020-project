@@ -1,4 +1,5 @@
 #pragma once
+
 #include "parser.hpp"
 
 void waitOnBarrier(Parser::Host const &barrier);
