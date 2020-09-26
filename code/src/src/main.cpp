@@ -2,11 +2,11 @@
 #include <iostream>
 #include <thread>
 
-#include "barrier.hpp"
-#include "parser.hpp"
-#include "hello.h"
-#include <signal.h>
+#include <csignal>
 
+#include "barrier.hpp"
+#include "links.hpp"
+#include "parser.hpp"
 
 static void stop(int) {
   // reset signal handlers to default
@@ -23,7 +23,7 @@ static void stop(int) {
   exit(0);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   signal(SIGTERM, stop);
   signal(SIGINT, stop);
 
@@ -34,76 +34,33 @@ int main(int argc, char **argv) {
   Parser parser(argc, argv, requireConfig);
   parser.parse();
 
-  hello();
-  std::cout << std::endl;
-
+  auto id = parser.id();
   std::cout << "My PID: " << getpid() << "\n";
-  std::cout << "Use `kill -SIGINT " << getpid() << "` or `kill -SIGTERM "
-            << getpid() << "` to stop processing packets\n\n";
+  std::cout << "My ID: " << id << "\n\n";
 
-  std::cout << "My ID: " << parser.id() << "\n\n";
-
-  std::cout << "Path to hosts:\n";
-  std::cout << "==============\n";
-  std::cout << parser.hostsPath() << "\n\n";
-
-  std::cout << "List of resolved hosts is:\n";
-  std::cout << "==========================\n";
   auto hosts = parser.hosts();
-  for (auto &host : hosts) {
-    std::cout << host.id << "\n";
-    std::cout << "Human-readable IP: " << host.ipReadable() << "\n";
-    std::cout << "Machine-readable IP: " << host.ip << "\n";
-    std::cout << "Human-readbale Port: " << host.portReadable() << "\n";
-    std::cout << "Machine-readbale Port: " << host.port << "\n";
-    std::cout << "\n";
-  }
-  std::cout << "\n";
-
-  std::cout << "Barrier:\n";
-  std::cout << "========\n";
   auto barrier = parser.barrier();
-  std::cout << "Human-readable IP: " << barrier.ipReadable() << "\n";
-  std::cout << "Machine-readable IP: " << barrier.ip << "\n";
-  std::cout << "Human-readbale Port: " << barrier.portReadable() << "\n";
-  std::cout << "Machine-readbale Port: " << barrier.port << "\n";
-  std::cout << "\n";
-
-  std::cout << "Signal:\n";
-  std::cout << "========\n";
   auto signal = parser.signal();
-  std::cout << "Human-readable IP: " << signal.ipReadable() << "\n";
-  std::cout << "Machine-readable IP: " << signal.ip << "\n";
-  std::cout << "Human-readbale Port: " << signal.portReadable() << "\n";
-  std::cout << "Machine-readbale Port: " << signal.port << "\n";
-  std::cout << "\n";
 
-  std::cout << "Path to output:\n";
-  std::cout << "===============\n";
-  std::cout << parser.outputPath() << "\n\n";
-
-  if (requireConfig) {
-    std::cout << "Path to config:\n";
-    std::cout << "===============\n";
-    std::cout << parser.configPath() << "\n\n";
-  }
-
-  std::cout << "Doing some initialization...\n\n";
-
-  Coordinator coordinator(parser.id(), barrier, signal);
+  Coordinator coordinator(id, barrier, signal);
 
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
+  MessageLink link(parser);
   std::cout << "Broadcasting messages...\n\n";
+
+  while (true) {
+    auto neighbor_id = 1 + (id % parser.hosts().size());
+    link.send_to(neighbor_id);
+    std::cout << "d " << neighbor_id << '\n';
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::cout << "b " << neighbor_id << '\n';
+    auto msg = link.recv();
+  }
 
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
-
-
-  while (true) {
-    std::this_thread::sleep_for(std::chrono::seconds(60));
-  }
 
   return 0;
 }
