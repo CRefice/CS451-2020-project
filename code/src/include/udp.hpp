@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <netinet/in.h>
+#include <optional>
 
 namespace udp {
 sockaddr_in socket_address(in_addr_t ip, std::uint16_t port);
@@ -23,6 +24,7 @@ public:
     send(dst_addr, reinterpret_cast<const char*>(&val), sizeof(T));
   }
 
+  std::optional<sockaddr_in> try_recv(char* buf, std::size_t len);
   sockaddr_in recv(char* buf, std::size_t len);
 
 private:

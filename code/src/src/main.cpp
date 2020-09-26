@@ -43,20 +43,32 @@ int main(int argc, char** argv) {
   auto signal = parser.signal();
 
   Coordinator coordinator(id, barrier, signal);
+  MessageLink link(parser);
 
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
-  MessageLink link(parser);
   std::cout << "Broadcasting messages...\n\n";
 
+  auto neighbor_id = 1 + (id % hosts.size());
+
+  for (int i = 0; i < 10; ++i) {
+    link.send_to(neighbor_id, i);
+    std::cout << "b " << i << '\n';
+    if (auto msg = link.try_recv()) {
+      std::cout << "d " << msg->sender << ' ' << msg->sequence_num << '\n';
+    }
+  }
+
+  constexpr auto timeout = std::chrono::milliseconds(200);
   while (true) {
-    auto neighbor_id = 1 + (id % parser.hosts().size());
-    link.send_to(neighbor_id);
-    std::cout << "d " << neighbor_id << '\n';
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    std::cout << "b " << neighbor_id << '\n';
-    auto msg = link.recv();
+    const auto start = std::chrono::steady_clock::now();
+    do {
+      if (auto msg = link.try_recv()) {
+        std::cout << "d " << msg->sender << ' ' << msg->sequence_num << '\n';
+      }
+    } while (std::chrono::steady_clock::now() - start < timeout);
+    link.send_heartbeats();
   }
 
   std::cout << "Signaling end of broadcasting messages\n\n";
