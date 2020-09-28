@@ -4,7 +4,7 @@ include_directories(include)
 set(SOURCES
     src/main.cpp
     src/udp.cpp
-    src/links.cpp
+    src/link.cpp
 )
 
 # DO NOT EDIT THE FOLLOWING LINE

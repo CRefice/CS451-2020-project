@@ -5,8 +5,18 @@
 #include <csignal>
 
 #include "barrier.hpp"
-#include "links.hpp"
+#include "link.hpp"
+#include "logger.hpp"
 #include "parser.hpp"
+
+static std::uint16_t local_port(Parser& parser) {
+  for (auto& host : parser.hosts()) {
+    if (host.id == parser.id()) {
+      return host.port;
+    }
+  }
+  throw std::runtime_error("no host with the given id found in the hosts file");
+}
 
 static void stop(int) {
   // reset signal handlers to default
@@ -43,7 +53,9 @@ int main(int argc, char** argv) {
   auto signal = parser.signal();
 
   Coordinator coordinator(id, barrier, signal);
-  MessageLink link(parser);
+  udp::Socket socket(local_port(parser));
+  Logger logger;
+  msg::PerfectLink link(parser, socket, logger);
 
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
@@ -53,22 +65,21 @@ int main(int argc, char** argv) {
   auto neighbor_id = 1 + (id % hosts.size());
 
   for (int i = 0; i < 10; ++i) {
-    link.send_to(neighbor_id, i);
+    link.send(neighbor_id, i);
     std::cout << "b " << i << '\n';
-    if (auto msg = link.try_recv()) {
-      std::cout << "d " << msg->sender << ' ' << msg->sequence_num << '\n';
-    }
   }
 
   constexpr auto timeout = std::chrono::milliseconds(200);
   while (true) {
     const auto start = std::chrono::steady_clock::now();
     do {
-      if (auto msg = link.try_recv()) {
-        std::cout << "d " << msg->sender << ' ' << msg->sequence_num << '\n';
+      msg::Message msg{};
+      if (socket.try_recv(reinterpret_cast<char*>(&msg), sizeof(msg))
+              .has_value()) {
+        link.Link::deliver(msg);
       }
     } while (std::chrono::steady_clock::now() - start < timeout);
-    link.send_heartbeats();
+    link.resynchronize();
   }
 
   std::cout << "Signaling end of broadcasting messages\n\n";
