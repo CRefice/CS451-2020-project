@@ -1,6 +1,6 @@
 mkdir -p logs
 
-trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+trap "kill 0" EXIT
 
 NUM_PROCESSES=3
 python finishedSignal.py --host localhost --port 10000 -p $NUM_PROCESSES &

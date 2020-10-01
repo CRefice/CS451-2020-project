@@ -5,6 +5,8 @@ set(SOURCES
     src/main.cpp
     src/udp.cpp
     src/link.cpp
+    src/broadcast.cpp
+    src/logger.cpp
 )
 
 # DO NOT EDIT THE FOLLOWING LINE

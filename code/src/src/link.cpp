@@ -3,7 +3,6 @@
 #include "link.hpp"
 
 namespace msg {
-
 void PerfectFifoLink::do_send(const Message& msg) {
   socket.send(receiver_addr, reinterpret_cast<const char*>(&msg), sizeof(msg));
 }

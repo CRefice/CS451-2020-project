@@ -12,11 +12,11 @@
 namespace msg {
 class PerfectFifoLink : public Observer {
 public:
-  PerfectFifoLink(unsigned long process_id, const Parser::Host& receiver,
+  PerfectFifoLink(unsigned long process_id, const Parser::Host& host,
                   udp::Socket& socket, Observer& observer)
       : process_id(process_id),
-        receiver_addr(udp::socket_address(receiver.ip, receiver.port)),
-        socket(socket), observer(observer) {}
+        receiver_addr(udp::socket_address(host.ip, host.port)), socket(socket),
+        observer(observer) {}
 
   void send(int broadcast_seq_num);
   void deliver(const Message& msg) override;
