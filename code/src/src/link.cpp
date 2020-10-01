@@ -3,50 +3,43 @@
 #include "link.hpp"
 
 namespace msg {
-Link::Link(Parser& parser, udp::Socket& socket, Observer& observer)
-    : process_id(parser.id()), socket(socket), observer(observer) {
-  host_addrs.resize(parser.hosts().size());
-  for (auto& host : parser.hosts()) {
-    address_of(host.id) = udp::socket_address(host.ip, host.port);
-  }
+
+void PerfectFifoLink::do_send(const Message& msg) {
+  socket.send(receiver_addr, reinterpret_cast<const char*>(&msg), sizeof(msg));
 }
 
-void Link::do_send(unsigned long receiver, const Message& msg) {
-  socket.send(address_of(receiver), reinterpret_cast<const char*>(&msg),
-              sizeof(msg));
-}
-
-void Link::send(unsigned long receiver, int broadcast_seq_num) {
+void PerfectFifoLink::send(int broadcast_seq_num) {
   const auto id = Identifier{process_id, next_seq_num};
   const auto msg = Message{id, broadcast_seq_num, Syn};
-  do_send(receiver, msg);
-  sent_msgs.emplace(next_seq_num++, std::make_pair(msg, receiver));
+  do_send(msg);
+  sent_msgs.emplace(next_seq_num++, msg);
 }
 
-void Link::deliver(const Message& msg) {
+void PerfectFifoLink::deliver(const Message& msg) {
   if (msg.discr == Syn) {
-    // New message incoming. Send acknowledgment
+    // new message incoming
+    const auto seq_num = msg.id.sequence_num;
+    bool should_ack = true;
+    if (!delivered.has_seen(seq_num)) {
+      // if we haven't received the message before,
+      // try to add it to the received queue.
+      // if the queue is full, we do not acknowledge receipt,
+      // so the sender will try again.
+      should_ack = delivered.add(
+          msg, seq_num, [this](const Message& msg) { observer.deliver(msg); });
+    }
     Message ack(msg);
     ack.discr = Ack;
-    do_send(msg.id.sender, ack);
-    observer.deliver(msg);
+    do_send(ack);
   } else {
-    // Received acknowledgement, remove from sent set
+    // received acknowledgement, remove from sent set
     sent_msgs.erase(msg.id.sequence_num);
   }
 }
 
-void Link::resynchronize() {
-  for (const auto& [_, entry] : sent_msgs) {
-    const auto& [msg, receiver] = entry;
-    do_send(receiver, msg);
-  }
-}
-
-void PerfectLink::deliver(const Message& msg) {
-  if (delivered_msgs.find(msg.id) == delivered_msgs.end()) {
-    delivered_msgs.emplace(msg.id);
-    observer.deliver(msg);
+void PerfectFifoLink::resynchronize() {
+  for (const auto& [_, msg] : sent_msgs) {
+    do_send(msg);
   }
 }
 } // namespace msg

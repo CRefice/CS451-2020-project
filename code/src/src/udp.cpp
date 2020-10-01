@@ -50,7 +50,7 @@ void Socket::send(const sockaddr_in& dst_addr, const char* buf,
     throw std::runtime_error(std::string("failed to send message: ") +
                              std::strerror(errno));
   }
-} // namespace udp
+}
 
 std::optional<sockaddr_in> Socket::try_recv(char* buf, std::size_t len) {
   // Do not block and wait for a message if it's not available,

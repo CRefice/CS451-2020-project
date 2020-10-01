@@ -51,21 +51,21 @@ int main(int argc, char** argv) {
   auto hosts = parser.hosts();
   auto barrier = parser.barrier();
   auto signal = parser.signal();
+  const auto& neighbor_host = hosts[id % hosts.size()];
 
   Coordinator coordinator(id, barrier, signal);
   udp::Socket socket(local_port(parser));
   Logger logger;
-  msg::PerfectLink link(parser, socket, logger);
+
+  msg::PerfectFifoLink link(id, neighbor_host, socket, logger);
 
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
   std::cout << "Broadcasting messages...\n\n";
 
-  auto neighbor_id = 1 + (id % hosts.size());
-
   for (int i = 0; i < 10; ++i) {
-    link.send(neighbor_id, i);
+    link.send(i);
     std::cout << "b " << i << '\n';
   }
 
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
       msg::Message msg{};
       if (socket.try_recv(reinterpret_cast<char*>(&msg), sizeof(msg))
               .has_value()) {
-        link.Link::deliver(msg);
+        link.deliver(msg);
       }
     } while (std::chrono::steady_clock::now() - start < timeout);
     link.resynchronize();

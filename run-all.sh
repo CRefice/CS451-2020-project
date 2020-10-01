@@ -2,7 +2,7 @@ mkdir -p logs
 
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
-NUM_PROCESSES=2
+NUM_PROCESSES=3
 python finishedSignal.py --host localhost --port 10000 -p $NUM_PROCESSES &
 python barrier.py --host localhost --port 11000 -p $NUM_PROCESSES &
 
