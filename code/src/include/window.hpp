@@ -8,7 +8,7 @@
 template <typename T>
 class WindowBuffer {
 public:
-  static constexpr int CAPACITY = 2;
+  static constexpr int CAPACITY = 1024;
 
   template <typename Fn>
   bool add(T item, int seq_num, Fn&& callback) noexcept {

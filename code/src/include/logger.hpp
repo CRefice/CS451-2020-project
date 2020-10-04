@@ -8,7 +8,7 @@
 
 class Logger : public msg::Observer {
 public:
-  Logger(const char* path) : file(path, std::ios::trunc) {}
+  Logger(const char* path);
 
   void log_broadcast(int seq_num);
   void flush();

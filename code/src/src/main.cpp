@@ -2,12 +2,11 @@
 #include <iostream>
 #include <thread>
 
-#include <csignal>
-
 #include "barrier.hpp"
 #include "broadcast.hpp"
 #include "logger.hpp"
 #include "parser.hpp"
+#include <csignal>
 
 static std::uint16_t local_port(Parser& parser) {
   for (auto& host : parser.hosts()) {
@@ -62,19 +61,28 @@ int main(int argc, char** argv) {
   auto& log = logger(parser.outputPath());
   Coordinator coordinator(id, barrier, signal);
   udp::Socket socket(local_port(parser));
-  msg::Broadcast broadcast(parser, socket, log);
+  msg::UniformReliableBroadcast broadcast(parser, socket, log);
+
+  int n = 10;
+  if (parser.configPath()) {
+    std::ifstream file(parser.configPath());
+    file >> n;
+  }
 
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
   std::cout << "Broadcasting messages...\n\n";
 
-  for (int i = 0; i < 10; ++i) {
+  for (int i = 1; i <= n; ++i) {
     broadcast.send(i);
     log.log_broadcast(i);
   }
 
-  constexpr auto timeout = std::chrono::seconds(3);
+  std::cout << "Signaling end of broadcasting messages\n\n";
+  coordinator.finishedBroadcasting();
+
+  constexpr auto timeout = std::chrono::milliseconds(300);
   while (true) {
     const auto start = std::chrono::steady_clock::now();
     do {
@@ -86,9 +94,4 @@ int main(int argc, char** argv) {
     } while (std::chrono::steady_clock::now() - start < timeout);
     broadcast.resynchronize();
   }
-
-  std::cout << "Signaling end of broadcasting messages\n\n";
-  coordinator.finishedBroadcasting();
-
-  return 0;
 }

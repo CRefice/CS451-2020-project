@@ -18,7 +18,7 @@ public:
         receiver_addr(udp::socket_address(host.ip, host.port)), socket(socket),
         observer(observer) {}
 
-  void send(int broadcast_seq_num);
+  void send(Message msg);
   void deliver(const Message& msg) override;
 
   void resynchronize();

@@ -7,9 +7,8 @@ void PerfectFifoLink::do_send(const Message& msg) {
   socket.send(receiver_addr, reinterpret_cast<const char*>(&msg), sizeof(msg));
 }
 
-void PerfectFifoLink::send(int broadcast_seq_num) {
-  const auto id = Identifier{process_id, next_seq_num};
-  const auto msg = Message{id, broadcast_seq_num, Syn};
+void PerfectFifoLink::send(Message msg) {
+  msg.link_id = Identifier{process_id, next_seq_num};
   do_send(msg);
   sent_msgs.emplace(next_seq_num++, msg);
 }
@@ -17,7 +16,7 @@ void PerfectFifoLink::send(int broadcast_seq_num) {
 void PerfectFifoLink::deliver(const Message& msg) {
   if (msg.discr == Syn) {
     // new message incoming
-    const auto seq_num = msg.id.sequence_num;
+    const auto seq_num = msg.link_id.sequence_num;
     bool should_ack = true;
     if (!delivered.has_seen(seq_num)) {
       // if we haven't received the message before,
@@ -32,7 +31,7 @@ void PerfectFifoLink::deliver(const Message& msg) {
     do_send(ack);
   } else {
     // received acknowledgement, remove from sent set
-    sent_msgs.erase(msg.id.sequence_num);
+    sent_msgs.erase(msg.link_id.sequence_num);
   }
 }
 

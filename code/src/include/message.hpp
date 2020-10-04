@@ -33,8 +33,7 @@ enum Discriminant : char {
 };
 
 struct Message {
-  Identifier id;
-  int broadcast_seq_num;
+  Identifier link_id, broadcast_id;
   Discriminant discr;
 };
 
