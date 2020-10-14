@@ -1,4 +1,5 @@
 #include <chrono>
+#include <csignal>
 #include <iostream>
 #include <thread>
 
@@ -6,16 +7,6 @@
 #include "broadcast.hpp"
 #include "logger.hpp"
 #include "parser.hpp"
-#include <csignal>
-
-static std::uint16_t local_port(Parser& parser) {
-  for (auto& host : parser.hosts()) {
-    if (host.id == parser.id()) {
-      return host.port;
-    }
-  }
-  throw std::runtime_error("no host with the given id found in the hosts file");
-}
 
 // Ugly have to have global access to a logger in a function
 static Logger& logger(const char* filename) {
@@ -60,10 +51,10 @@ int main(int argc, char** argv) {
 
   auto& log = logger(parser.outputPath());
   Coordinator coordinator(id, barrier, signal);
-  udp::Socket socket(local_port(parser));
-  msg::UniformReliableBroadcast broadcast(parser, socket, log);
+  msg::FairLossLink link(parser);
+  msg::FifoBroadcast broadcast(parser, link, log);
 
-  int n = 10;
+  unsigned int n = 10;
   if (parser.configPath()) {
     std::ifstream file(parser.configPath());
     file >> n;
@@ -74,24 +65,20 @@ int main(int argc, char** argv) {
 
   std::cout << "Broadcasting messages...\n\n";
 
-  for (int i = 1; i <= n; ++i) {
+  for (auto i = 1u; i <= n; ++i) {
     broadcast.send(i);
     log.log_broadcast(i);
+    link.try_deliver();
+  }
+
+  const std::size_t total_messages = n * hosts.size();
+  while (log.received_count() < total_messages) {
+    link.deliver();
   }
 
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
 
-  constexpr auto timeout = std::chrono::milliseconds(300);
-  while (true) {
-    const auto start = std::chrono::steady_clock::now();
-    do {
-      msg::Message msg{};
-      if (socket.try_recv(reinterpret_cast<char*>(&msg), sizeof(msg))
-              .has_value()) {
-        broadcast.receive(msg);
-      }
-    } while (std::chrono::steady_clock::now() - start < timeout);
-    broadcast.resynchronize();
-  }
+  std::cout << "Writing output.\n\n";
+  logger(nullptr).flush();
 }

@@ -1,46 +1,58 @@
 #pragma once
 
+#include <bitset>
+#include <queue>
+
 #include "link.hpp"
 #include "window.hpp"
 
 namespace msg {
-class Broadcast : public Observer {
+class BestEffortBroadcast : public Observer {
 public:
-  Broadcast(Parser& parser, udp::Socket& socket, Observer& observer);
+  BestEffortBroadcast(Parser& parser, FairLossLink& link, Observer& observer);
 
-  void send(const Message& msg);
-
-  void receive(const Message& msg);
-  void resynchronize();
+  void send(Message msg);
 
 private:
   void deliver(const Message& msg) override;
 
-  std::vector<PerfectFifoLink> links;
+  unsigned int process_id;
+  std::size_t num_processes;
+  PerfectLink link;
   Observer& observer;
 };
 
 class UniformReliableBroadcast : public Observer {
 public:
-  UniformReliableBroadcast(Parser& parser, udp::Socket& socket,
-                           Observer& observer)
-      : process_id(parser.id()), num_processes(parser.hosts().size()),
-        bc(parser, socket, *this), observer(observer) {}
+  UniformReliableBroadcast(Parser& parser, FairLossLink& link,
+                           Observer& observer);
 
-  void send(int broadcast_num);
-  void resynchronize() { bc.resynchronize(); }
-  void receive(const Message& msg) { bc.receive(msg); }
+  void send(unsigned int sequence_num);
 
 private:
   bool can_deliver(const Message& msg);
-
+  void try_deliver(const Message& msg);
   void deliver(const Message& msg) override;
 
-  unsigned long process_id, num_processes;
-  std::unordered_map<Identifier, std::unordered_set<unsigned long>> ack;
-  std::unordered_set<Identifier> pending;
-  std::unordered_set<Identifier> delivered;
-  Broadcast bc;
+  unsigned int process_id;
+  std::size_t num_processes;
+  std::unordered_map<Identifier, std::bitset<128>> ack;
+  std::unordered_set<Identifier> pending, delivered;
+  BestEffortBroadcast bc;
+  Observer& observer;
+};
+
+class FifoBroadcast : public Observer {
+public:
+  FifoBroadcast(Parser& parser, FairLossLink& link, Observer& observer);
+
+  void send(unsigned int sequence_num);
+
+private:
+  void deliver(const Message& msg) override;
+
+  std::vector<OrderedBuffer<Message>> ordered;
+  UniformReliableBroadcast bc;
   Observer& observer;
 };
 } // namespace msg

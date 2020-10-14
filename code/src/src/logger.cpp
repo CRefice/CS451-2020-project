@@ -15,7 +15,7 @@ void Logger::flush() {
   file.close();
 }
 
-void Logger::log_broadcast(int seq_num) {
+void Logger::log_broadcast(unsigned int seq_num) {
   buffer += "b ";
   buffer += std::to_string(seq_num);
   buffer += '\n';
@@ -27,4 +27,5 @@ void Logger::deliver(const msg::Message& msg) {
   buffer += ' ';
   buffer += std::to_string(msg.broadcast_id.sequence_num);
   buffer += '\n';
+  count++;
 }

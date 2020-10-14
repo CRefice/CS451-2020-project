@@ -2,43 +2,71 @@
 
 #include <array>
 #include <cassert>
+#include <queue>
+#include <type_traits>
+#include <utility>
 
 #include "message.hpp"
 
-template <typename T>
+template <typename T, std::size_t Cap = 1024,
+          typename = std::enable_if_t<std::is_integral_v<T>>>
 class WindowBuffer {
 public:
-  static constexpr int CAPACITY = 1024;
-
-  template <typename Fn>
-  bool add(T item, int seq_num, Fn&& callback) noexcept {
-    const auto idx = index_of(seq_num);
-    if (idx >= CAPACITY) {
+  bool add(T item) noexcept {
+    if (has_seen(item)) {
+      // Message has already been added before, so no bother.
+      return true;
+    }
+    const auto idx = index_of(item);
+    if (idx >= Cap) {
       return false;
     }
-    arr[idx] = item;
     marks[idx] = true;
-    while (expected_next <= idx && marks[expected_next]) {
-      callback(arr[expected_next++]);
-    }
-    if (expected_next == CAPACITY) {
+    if (++size == Cap) {
+      offset += Cap;
+      size = 0;
       marks.fill(false);
-      offset += CAPACITY;
-      expected_next = 0;
     }
     return true;
   }
 
-  bool has_seen(int seq_num) const noexcept {
-    return seq_num < offset || marks[index_of(seq_num)];
+  bool has_seen(T item) const noexcept {
+    return item < offset || marks[index_of(item)];
   }
 
-  int current_offset() const noexcept { return offset; }
+private:
+  std::size_t index_of(T item) const noexcept { return item - offset; }
+
+  T offset = 0, size = 0;
+  std::array<bool, Cap> marks{};
+};
+
+template <typename T>
+class OrderedBuffer {
+public:
+  void add(T item, unsigned int seq_num) noexcept {
+    queue.push(Entry{std::move(item), seq_num});
+  }
+
+  bool has_next() const noexcept { return queue.top().id == expected_next; }
+
+  T pop_next() {
+    auto entry = std::move(queue.top());
+    queue.pop();
+    expected_next++;
+    return entry.val;
+  }
 
 private:
-  int index_of(int seq_num) const noexcept { return seq_num - offset; }
+  struct Entry {
+    T val;
+    unsigned int id;
 
-  int offset = 0, expected_next = 0;
-  std::array<T, CAPACITY> arr{};
-  std::array<bool, CAPACITY> marks{};
+    friend bool operator<(const Entry& a, const Entry& b) {
+      return a.id < b.id;
+    }
+  };
+
+  std::priority_queue<Entry> queue;
+  unsigned int expected_next = 0;
 };

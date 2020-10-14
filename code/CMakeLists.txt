@@ -19,7 +19,7 @@ string(CONCAT CMAKE_CXX_FLAGS_COMMON_STR ""
                         "-Wformat-nonliteral -Wuninitialized "
                         "-Wformat-security -Wformat-y2k -Winit-self "
                         "-Wmissing-declarations -Wmissing-include-dirs "
-                        "-Wredundant-decls -Wstrict-overflow=5 -Wundef "
+                        "-Wredundant-decls -Wstrict-overflow=1 -Wundef "
                         "-Wno-unused -Wctor-dtor-privacy -Wsign-promo "
                         "-Woverloaded-virtual -Wold-style-cast")
 

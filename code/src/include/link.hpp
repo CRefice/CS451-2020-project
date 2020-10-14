@@ -1,38 +1,63 @@
 #pragma once
 
-#include <cstring>
-#include <unordered_map>
+#include <deque>
+#include <thread>
 #include <unordered_set>
+#include <vector>
 
+#include "concurrent-map.hpp"
 #include "message.hpp"
 #include "parser.hpp"
 #include "udp.hpp"
 #include "window.hpp"
 
 namespace msg {
-class PerfectFifoLink : public Observer {
+class FairLossLink {
 public:
-  PerfectFifoLink(unsigned long process_id, const Parser::Host& host,
-                  udp::Socket& socket, Observer& observer)
-      : process_id(process_id),
-        receiver_addr(udp::socket_address(host.ip, host.port)), socket(socket),
-        observer(observer) {}
+  FairLossLink(Parser& parser);
 
-  void send(Message msg);
-  void deliver(const Message& msg) override;
+  void connect(Observer* obs);
+  void try_deliver();
+  void deliver();
 
-  void resynchronize();
+  void send(unsigned int receiver, const Message& msg);
 
 private:
-  void do_send(const Message& msg);
+  std::vector<sockaddr_in> addrs;
+  udp::Socket socket;
+  Observer* obs = nullptr;
+};
 
-  unsigned long process_id;
-  int next_seq_num = 0;
-  sockaddr_in receiver_addr;
-  std::unordered_map<int, Message> sent_msgs;
-  WindowBuffer<msg::Message> delivered;
+class PerfectLink : public Observer {
+public:
+  PerfectLink(Parser& parser, FairLossLink& link, Observer& observer);
+  ~PerfectLink();
 
-  udp::Socket& socket;
+  void send(unsigned int receiver, Message msg);
+  void deliver(const Message& msg) override;
+
+private:
+  struct Peer {
+    Peer(unsigned int process_id, FairLossLink& link)
+        : delivered(), incoming(), syn_worker([this, process_id, &link] {
+            continuous_resync(incoming, process_id, link);
+          }) {}
+
+    static void continuous_resync(ConcurrentQueue<Message>& incoming,
+                                  unsigned int receiver, FairLossLink& link);
+
+    unsigned int next_seq_num = 0;
+    WindowBuffer<unsigned int> delivered;
+    // Data shared with worker thread
+    ConcurrentQueue<Message> incoming;
+    std::thread syn_worker;
+  };
+
+  unsigned int process_id;
+  // Condition variables can't be moved around in memory,
+  // so we need a deque to hold them.
+  std::deque<Peer> peers;
+  FairLossLink& link;
   Observer& observer;
 };
 } // namespace msg

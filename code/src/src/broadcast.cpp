@@ -1,59 +1,69 @@
 #include "broadcast.hpp"
 
 namespace msg {
-Broadcast::Broadcast(Parser& parser, udp::Socket& socket, Observer& observer)
-    : observer(observer) {
-  const auto process_id = parser.id();
-  for (auto& host : parser.hosts()) {
-    links.emplace_back(process_id, host, socket, *this);
+BestEffortBroadcast::BestEffortBroadcast(Parser& parser, FairLossLink& link,
+                                         Observer& observer)
+    : process_id(static_cast<unsigned int>(parser.id())),
+      num_processes(parser.hosts().size()), link(parser, link, *this),
+      observer(observer) {}
+
+void BestEffortBroadcast::send(Message msg) {
+  for (auto p = 1u; p <= num_processes; ++p) {
+    link.send(p, msg);
   }
 }
 
-void Broadcast::send(const Message& msg) {
-  for (auto& link : links) {
-    link.send(msg);
-  }
-}
+void BestEffortBroadcast::deliver(const Message& msg) { observer.deliver(msg); }
 
-void Broadcast::deliver(const Message& msg) { observer.deliver(msg); }
+UniformReliableBroadcast::UniformReliableBroadcast(Parser& parser,
+                                                   FairLossLink& link,
+                                                   Observer& observer)
+    : process_id(static_cast<unsigned int>(parser.id())),
+      num_processes(parser.hosts().size()), delivered(num_processes),
+      bc(parser, link, *this), observer(observer) {}
 
-void Broadcast::receive(const Message& msg) {
-  auto idx = msg.link_id.sender - 1;
-  links[idx].deliver(msg);
-}
-
-void Broadcast::resynchronize() {
-  for (auto& link : links) {
-    link.resynchronize();
-  }
-}
-
-void UniformReliableBroadcast::send(int broadcast_num) {
-  auto broadcast_id = Identifier{process_id, broadcast_num};
+void UniformReliableBroadcast::send(unsigned int sequence_num) {
   Message msg{};
-  msg.broadcast_id = broadcast_id;
+  msg.broadcast_id.sender = process_id;
+  msg.broadcast_id.sequence_num = sequence_num;
   bc.send(msg);
 }
 
 bool UniformReliableBroadcast::can_deliver(const Message& msg) {
-  return ack[msg.broadcast_id].size() > (num_processes / 2) &&
+  return ack[msg.broadcast_id].count() > (num_processes / 2) &&
          pending.find(msg.broadcast_id) != pending.end() &&
          delivered.find(msg.broadcast_id) == delivered.end();
 }
 
-void UniformReliableBroadcast::deliver(const Message& msg) {
-  ack[msg.broadcast_id].insert(msg.link_id.sender);
+void UniformReliableBroadcast::try_deliver(const Message& msg) {
   if (can_deliver(msg)) {
     delivered.insert(msg.broadcast_id);
     observer.deliver(msg);
   }
+}
+
+void UniformReliableBroadcast::deliver(const Message& msg) {
+  ack[msg.broadcast_id].set(msg.link_id.sender - 1, true);
+  try_deliver(msg);
   if (pending.find(msg.broadcast_id) == pending.end()) {
     pending.insert(msg.broadcast_id);
-    if (can_deliver(msg)) {
-      delivered.insert(msg.broadcast_id);
-      observer.deliver(msg);
-    }
+    try_deliver(msg);
     bc.send(msg);
+  }
+}
+
+FifoBroadcast::FifoBroadcast(Parser& parser, FairLossLink& link,
+                             Observer& observer)
+    : ordered(parser.hosts().size()), bc(parser, link, *this),
+      observer(observer) {}
+
+void FifoBroadcast::send(unsigned int sequence_num) { bc.send(sequence_num); }
+
+void FifoBroadcast::deliver(const Message& msg) {
+  auto& queue = ordered[msg.broadcast_id.sender - 1];
+  queue.add(msg, msg.broadcast_id.sequence_num - 1);
+  while (queue.has_next()) {
+    observer.deliver(queue.pop_next());
   }
 }
 } // namespace msg

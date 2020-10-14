@@ -19,6 +19,11 @@ public:
 
   void send(const sockaddr_in& dst_addr, const char* buf, std::size_t len);
 
+  template <typename T>
+  void send(const sockaddr_in& dst_addr, const T& val) {
+    send(dst_addr, reinterpret_cast<const char*>(&val), sizeof(T));
+  }
+
   std::optional<sockaddr_in> try_recv(char* buf, std::size_t len);
   sockaddr_in recv(char* buf, std::size_t len);
 
