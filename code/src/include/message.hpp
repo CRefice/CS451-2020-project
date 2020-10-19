@@ -1,6 +1,10 @@
 #pragma once
 
 #include <functional>
+#include <ostream>
+
+inline unsigned int UINT_MSB = 1u << (sizeof(unsigned int) * 8 - 1);
+inline unsigned int SYN_MASK = ~UINT_MSB;
 
 namespace msg {
 struct Identifier {
@@ -28,6 +32,19 @@ struct hash<msg::Identifier> {
 namespace msg {
 struct Message {
   Identifier link_id, broadcast_id;
+
+  friend std::ostream& operator<<(std::ostream& os, const Message& m) {
+    auto flags = os.flags();
+    os << "from " << m.link_id.sender << ' ';
+    os.fill('0');
+    os.width(4);
+    os << m.link_id.sequence_num;
+    if (m.broadcast_id.sequence_num & UINT_MSB) {
+      os << "(ack)";
+    }
+    os.flags(flags);
+    return os;
+  }
 };
 
 class Observer {

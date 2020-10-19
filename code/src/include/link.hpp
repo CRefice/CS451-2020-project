@@ -20,9 +20,10 @@ public:
   void try_deliver();
   void deliver();
 
-  void send(unsigned int receiver, const Message& msg);
+  void send(unsigned int receiver, Message msg);
 
 private:
+  unsigned int process_id;
   std::vector<sockaddr_in> addrs;
   udp::Socket socket;
   Observer* obs = nullptr;

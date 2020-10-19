@@ -52,18 +52,20 @@ int main(int argc, char** argv) {
   auto& log = logger(parser.outputPath());
   Coordinator coordinator(id, barrier, signal);
   msg::FairLossLink link(parser);
-  msg::FifoBroadcast broadcast(parser, link, log);
+  msg::UniformReliableBroadcast broadcast(parser, link, log);
 
   unsigned int n = 10;
   if (parser.configPath()) {
     std::ifstream file(parser.configPath());
+    if (!file.is_open()) {
+      throw std::runtime_error("couldn't open config file " +
+                               std::string(parser.configPath()));
+    }
     file >> n;
   }
 
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
-
-  std::cout << "Broadcasting messages...\n\n";
 
   for (auto i = 1u; i <= n; ++i) {
     broadcast.send(i);

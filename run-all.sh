@@ -10,7 +10,7 @@ python barrier.py --host localhost --port 11000 -p $NUM_PROCESSES &
 sleep 1
 
 for i in $(seq 1 $NUM_PROCESSES); do
-	(cd code && ./run-process.sh $i) &
+	(cd code && ./run-process.sh $i > $i.output) &
 done
 
 wait

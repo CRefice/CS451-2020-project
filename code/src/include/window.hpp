@@ -8,7 +8,7 @@
 
 #include "message.hpp"
 
-template <typename T, std::size_t Cap = 1024,
+template <typename T, std::size_t Cap = 10 * 1024,
           typename = std::enable_if_t<std::is_integral_v<T>>>
 class WindowBuffer {
 public:
@@ -23,6 +23,7 @@ public:
     }
     marks[idx] = true;
     if (++size == Cap) {
+      std::cout << "clearing\n";
       offset += Cap;
       size = 0;
       marks.fill(false);

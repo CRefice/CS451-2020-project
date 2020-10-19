@@ -26,6 +26,7 @@ void UniformReliableBroadcast::send(unsigned int sequence_num) {
   Message msg{};
   msg.broadcast_id.sender = process_id;
   msg.broadcast_id.sequence_num = sequence_num;
+  pending.insert(msg.broadcast_id);
   bc.send(msg);
 }
 
