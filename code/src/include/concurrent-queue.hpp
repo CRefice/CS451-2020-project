@@ -26,10 +26,19 @@ public:
       const auto item = std::move(inner.front());
       inner.pop_front();
       return item;
-    } else {
-      // Timeout
+    }
+    // Timeout
+    return std::nullopt;
+  }
+
+  std::optional<T> try_pop() {
+    std::unique_lock lk(mutex);
+    if (inner.empty()) {
       return std::nullopt;
     }
+    const auto item = std::move(inner.front());
+    inner.pop_front();
+    return item;
   }
 
   T pop() {

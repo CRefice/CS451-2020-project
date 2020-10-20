@@ -4,42 +4,30 @@
 #include <cassert>
 #include <queue>
 #include <type_traits>
+#include <unordered_set>
 #include <utility>
 
 #include "message.hpp"
 
-template <typename T, std::size_t Cap = 10 * 1024,
-          typename = std::enable_if_t<std::is_integral_v<T>>>
+template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
 class WindowBuffer {
 public:
-  bool add(T item) noexcept {
-    if (has_seen(item)) {
-      // Message has already been added before, so no bother.
-      return true;
+  void add(T item) noexcept {
+    inserted.insert(item);
+    typename std::unordered_set<T>::iterator it;
+    while ((it = inserted.find(expected_next)) != inserted.end()) {
+      inserted.erase(it);
+      expected_next++;
     }
-    const auto idx = index_of(item);
-    if (idx >= Cap) {
-      return false;
-    }
-    marks[idx] = true;
-    if (++size == Cap) {
-      std::cout << "clearing\n";
-      offset += Cap;
-      size = 0;
-      marks.fill(false);
-    }
-    return true;
   }
 
   bool has_seen(T item) const noexcept {
-    return item < offset || marks[index_of(item)];
+    return item < offset || inserted.find(item) != inserted.end();
   }
 
 private:
-  std::size_t index_of(T item) const noexcept { return item - offset; }
-
-  T offset = 0, size = 0;
-  std::array<bool, Cap> marks{};
+  T offset = 0, expected_next = 0;
+  std::unordered_set<T> inserted;
 };
 
 template <typename T>
@@ -63,11 +51,12 @@ private:
     T val;
     unsigned int id;
 
-    friend bool operator<(const Entry& a, const Entry& b) {
-      return a.id < b.id;
+    friend bool operator>(const Entry& a, const Entry& b) noexcept {
+      return a.id > b.id;
     }
   };
 
-  std::priority_queue<Entry> queue;
+  // Sort by smallest element on top
+  std::priority_queue<Entry, std::vector<Entry>, std::greater<>> queue;
   unsigned int expected_next = 0;
 };

@@ -35,13 +35,14 @@ struct Message {
 
   friend std::ostream& operator<<(std::ostream& os, const Message& m) {
     auto flags = os.flags();
-    os << "from " << m.link_id.sender << ' ';
+    os << "from " << m.broadcast_id.sender << ' ';
     os.fill('0');
     os.width(4);
-    os << m.link_id.sequence_num;
+    os << (m.broadcast_id.sequence_num & SYN_MASK);
     if (m.broadcast_id.sequence_num & UINT_MSB) {
       os << "(ack)";
     }
+    os << " through " << m.link_id.sender;
     os.flags(flags);
     return os;
   }

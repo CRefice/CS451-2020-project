@@ -18,6 +18,8 @@ public:
 private:
   void deliver(const msg::Message& msg) override;
 
+  void log(std::string&& line);
+
   std::ofstream file;
   std::string buffer;
   std::size_t count = 0;

@@ -5,10 +5,20 @@
 
 #include "barrier.hpp"
 #include "broadcast.hpp"
+#include "concurrent-queue.hpp"
 #include "logger.hpp"
 #include "parser.hpp"
+#include "task.hpp"
 
-// Ugly have to have global access to a logger in a function
+static std::uint16_t local_port(Parser& parser) {
+  for (auto& host : parser.hosts()) {
+    if (host.id == parser.id()) {
+      return host.port;
+    }
+  }
+  throw std::runtime_error("no host with the given id found in the hosts file");
+}
+
 static Logger& logger(const char* filename) {
   static Logger ret(filename);
   return ret;
@@ -51,8 +61,18 @@ int main(int argc, char** argv) {
 
   auto& log = logger(parser.outputPath());
   Coordinator coordinator(id, barrier, signal);
-  msg::FairLossLink link(parser);
-  msg::UniformReliableBroadcast broadcast(parser, link, log);
+  udp::Socket socket(local_port(parser));
+  msg::FairLossLink link(parser, socket);
+  msg::FifoBroadcast broadcast(parser, link, log);
+
+  ConcurrentQueue<msg::Message> message_queue;
+  auto receiver = Task([&socket, &message_queue](Task::CancelToken& cancel) {
+    while (!cancel) {
+      msg::Message msg{};
+      socket.recv(reinterpret_cast<char*>(&msg), sizeof(msg));
+      message_queue.push(msg);
+    }
+  });
 
   unsigned int n = 10;
   if (parser.configPath()) {
@@ -63,19 +83,27 @@ int main(int argc, char** argv) {
     }
     file >> n;
   }
-
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
-  for (auto i = 1u; i <= n; ++i) {
-    broadcast.send(i);
-    log.log_broadcast(i);
-    link.try_deliver();
+  unsigned int i = 1;
+  std::size_t subsequent_recvs = 10;
+  while (i <= n) {
+    std::optional<msg::Message> maybe_msg;
+    if (subsequent_recvs > 0 && (maybe_msg = message_queue.try_pop())) {
+      subsequent_recvs--;
+      link.deliver(*maybe_msg);
+    } else {
+      subsequent_recvs = 10;
+      broadcast.send(i);
+      log.log_broadcast(i);
+      i++;
+    }
   }
 
   const std::size_t total_messages = n * hosts.size();
   while (log.received_count() < total_messages) {
-    link.deliver();
+    link.deliver(message_queue.pop());
   }
 
   std::cout << "Signaling end of broadcasting messages\n\n";

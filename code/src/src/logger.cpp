@@ -12,20 +12,28 @@ Logger::Logger(const char* path) : file(path) {
 
 void Logger::flush() {
   file << buffer;
-  file.close();
+  file.flush();
+  buffer.clear();
 }
 
 void Logger::log_broadcast(unsigned int seq_num) {
-  buffer += "b ";
-  buffer += std::to_string(seq_num);
-  buffer += '\n';
+  log("b " + std::to_string(seq_num));
 }
 
 void Logger::deliver(const msg::Message& msg) {
-  buffer += "d ";
-  buffer += std::to_string(msg.broadcast_id.sender);
-  buffer += ' ';
-  buffer += std::to_string(msg.broadcast_id.sequence_num);
-  buffer += '\n';
+  std::string line = "d ";
+  line += std::to_string(msg.broadcast_id.sender);
+  line += ' ';
+  line += std::to_string(msg.broadcast_id.sequence_num);
+  log(std::move(line));
   count++;
+}
+
+void Logger::log(std::string&& line) {
+  static constexpr std::size_t MAX_LEN = 1024 * 1024; // 1MB
+  line += '\n';
+  if (buffer.size() + line.size() > MAX_LEN) {
+    flush();
+  }
+  buffer += line;
 }
