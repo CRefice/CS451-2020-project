@@ -4,8 +4,8 @@
 #include <thread>
 
 #include "barrier.hpp"
-#include "broadcast.hpp"
 #include "concurrent-queue.hpp"
+#include "fifo-broadcast.hpp"
 #include "logger.hpp"
 #include "parser.hpp"
 #include "task.hpp"
@@ -87,28 +87,27 @@ int main(int argc, char** argv) {
   coordinator.waitOnBarrier();
 
   unsigned int i = 1;
-  std::size_t subsequent_recvs = 10;
+  std::size_t subsequent_recvs = n;
   while (i <= n) {
     std::optional<msg::Message> maybe_msg;
     if (subsequent_recvs > 0 && (maybe_msg = message_queue.try_pop())) {
       subsequent_recvs--;
-      link.deliver(*maybe_msg);
+      link.receive(*maybe_msg);
     } else {
-      subsequent_recvs = 10;
+      subsequent_recvs = n;
       broadcast.send(i);
       log.log_broadcast(i);
       i++;
     }
   }
-
-  const std::size_t total_messages = n * hosts.size();
-  while (log.received_count() < total_messages) {
-    link.deliver(message_queue.pop());
-  }
-
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
 
-  std::cout << "Writing output.\n\n";
+  const std::size_t total_messages = n * hosts.size();
+  while (log.received_count() < total_messages) {
+    link.receive(message_queue.pop());
+  }
+
   logger(nullptr).flush();
+  std::cout << id << ": Wrote output.\n\n";
 }

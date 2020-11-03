@@ -2,11 +2,15 @@
 
 include_directories(include)
 set(SOURCES
-    src/main.cpp
-    src/udp.cpp
-    src/link.cpp
-    src/broadcast.cpp
+    src/best-effort-broadcast.cpp
+    src/fair-loss-link.cpp
+    src/fifo-broadcast.cpp
     src/logger.cpp
+    src/main.cpp
+    src/perfect-link.cpp
+    src/rolling-set.cpp
+    src/udp.cpp
+    src/uniform-reliable-broadcast.cpp
 )
 
 # DO NOT EDIT THE FOLLOWING LINE

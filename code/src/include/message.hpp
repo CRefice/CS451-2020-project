@@ -1,52 +1,44 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
-#include <ostream>
-
-inline unsigned int UINT_MSB = 1u << (sizeof(unsigned int) * 8 - 1);
-inline unsigned int SYN_MASK = ~UINT_MSB;
+#include <unordered_map>
+#include <unordered_set>
 
 namespace msg {
-struct Identifier {
-  unsigned int sender, sequence_num;
+using LinkSeqNum = std::uint64_t;
+using BroadcastSeqNum = std::uint32_t;
+using ProcessId = std::uint8_t;
 
-  friend bool operator==(const Identifier& a, const Identifier& b) {
-    return a.sender == b.sender && a.sequence_num == b.sequence_num;
+inline constexpr std::uint8_t MAX_PROCESSES = 128;
+
+class Message {
+public:
+  LinkSeqNum link_seq_num;
+  BroadcastSeqNum bcast_seq_num;
+  ProcessId originator, sender;
+};
+
+struct BroacastMessageHash {
+  std::size_t operator()(const Message& m) const noexcept {
+    std::size_t h1 = std::hash<BroadcastSeqNum>{}(m.bcast_seq_num);
+    std::size_t h2 = std::hash<ProcessId>{}(m.originator);
+    return h1 ^ (h2 << 1);
   }
 };
-} // namespace msg
 
-// from https://en.cppreference.com/w/cpp/utility/hash
-// custom specialization of std::hash can be injected in namespace std
-namespace std {
-template <>
-struct hash<msg::Identifier> {
-  std::size_t operator()(const msg::Identifier& m) const noexcept {
-    std::size_t h1 = std::hash<unsigned int>{}(m.sender);
-    std::size_t h2 = std::hash<unsigned int>{}(m.sequence_num);
-    return h1 ^ (h2 << 1); // or use boost::hash_combine
+struct BroacastMessageCompare {
+  bool operator()(const Message& a, const Message& b) const noexcept {
+    return a.bcast_seq_num == b.bcast_seq_num && a.originator == b.originator;
   }
 };
-} // namespace std
 
-namespace msg {
-struct Message {
-  Identifier link_id, broadcast_id;
+template <typename T>
+using BroadcastMessageHashMap =
+    std::unordered_map<Message, T, BroacastMessageHash, BroacastMessageCompare>;
 
-  friend std::ostream& operator<<(std::ostream& os, const Message& m) {
-    auto flags = os.flags();
-    os << "from " << m.broadcast_id.sender << ' ';
-    os.fill('0');
-    os.width(4);
-    os << (m.broadcast_id.sequence_num & SYN_MASK);
-    if (m.broadcast_id.sequence_num & UINT_MSB) {
-      os << "(ack)";
-    }
-    os << " through " << m.link_id.sender;
-    os.flags(flags);
-    return os;
-  }
-};
+using BroadcastMessageHashSet =
+    std::unordered_set<Message, BroacastMessageHash, BroacastMessageCompare>;
 
 class Observer {
 public:

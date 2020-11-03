@@ -16,8 +16,6 @@ public:
       : handle([this, fn = std::forward<Fn>(fn)]() mutable { fn(cancelled); }) {
   }
 
-  Task(Task&& other) = default;
-
   ~Task() {
     cancel();
     join();
@@ -32,6 +30,6 @@ public:
   void join() { handle.join(); }
 
 private:
-  std::atomic<bool> cancelled = false;
+  CancelToken cancelled = false;
   std::thread handle;
 };

@@ -1,4 +1,5 @@
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 
 #include "logger.hpp"
@@ -11,29 +12,25 @@ Logger::Logger(const char* path) : file(path) {
 }
 
 void Logger::flush() {
-  file << buffer;
+  file << buffer.str();
   file.flush();
   buffer.clear();
+  buffer.flush();
 }
 
-void Logger::log_broadcast(unsigned int seq_num) {
-  log("b " + std::to_string(seq_num));
+void Logger::log_broadcast(msg::BroadcastSeqNum seq_num) {
+  buffer << "b " << seq_num << '\n';
 }
 
 void Logger::deliver(const msg::Message& msg) {
-  std::string line = "d ";
-  line += std::to_string(msg.broadcast_id.sender);
-  line += ' ';
-  line += std::to_string(msg.broadcast_id.sequence_num);
-  log(std::move(line));
+  buffer << "d " << +msg.originator << ' ' << msg.bcast_seq_num << '\n';
   count++;
+  try_flush();
 }
 
-void Logger::log(std::string&& line) {
-  static constexpr std::size_t MAX_LEN = 1024 * 1024; // 1MB
-  line += '\n';
-  if (buffer.size() + line.size() > MAX_LEN) {
+void Logger::try_flush() {
+  static constexpr long MAX_LEN = 1024 * 1024; // 1MB
+  if (buffer.tellp() > MAX_LEN) {
     flush();
   }
-  buffer += line;
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <fstream>
-#include <iostream>
+#include <sstream>
 #include <string>
 
 #include "message.hpp"
@@ -10,7 +10,7 @@ class Logger : public msg::Observer {
 public:
   Logger(const char* path);
 
-  void log_broadcast(unsigned int seq_num);
+  void log_broadcast(msg::BroadcastSeqNum seq_num);
   void flush();
 
   std::size_t received_count() const noexcept { return count; }
@@ -18,9 +18,9 @@ public:
 private:
   void deliver(const msg::Message& msg) override;
 
-  void log(std::string&& line);
+  void try_flush();
 
   std::ofstream file;
-  std::string buffer;
+  std::ostringstream buffer;
   std::size_t count = 0;
 };
