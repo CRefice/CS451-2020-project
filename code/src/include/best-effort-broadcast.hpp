@@ -12,7 +12,10 @@ public:
 private:
   void deliver(const Message& msg) override;
 
-  std::uint8_t num_processes;
+  void create_n_connected_ring(ProcessId n);
+
+  std::vector<ProcessId> connections;
+  ProcessId id;
   PerfectLink link;
   Observer& observer;
 };

@@ -76,11 +76,23 @@ static void handle_timeout(std::deque<Entry>& scheduled,
 }
 
 PerfectLink::Peer::Peer(ProcessId id, FairLossLink& link)
-    : delivered(), incoming(),
-      sender([this, receiver = id, &link](Task::CancelToken& cancel) {
+    : sender([this, receiver = id, &link](Task::CancelToken& cancel) {
         auto scheduled = std::deque<Entry>();
         auto acknowledged = std::unordered_set<LinkSeqNum>();
         while (!cancel.load(std::memory_order_relaxed)) {
+          std::optional<Message> maybe_item = try_pop(incoming, scheduled);
+          if (!maybe_item) {
+            handle_timeout(scheduled, acknowledged, receiver, link);
+            continue;
+          }
+          auto msg = *maybe_item;
+          if (is_syn(msg)) {
+            scheduled.emplace_back(msg);
+          } else {
+            acknowledged.insert(seq_num(msg));
+          }
+        }
+        while (!scheduled.empty()) {
           std::optional<Message> maybe_item = try_pop(incoming, scheduled);
           if (!maybe_item) {
             handle_timeout(scheduled, acknowledged, receiver, link);

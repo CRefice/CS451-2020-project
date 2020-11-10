@@ -74,40 +74,36 @@ int main(int argc, char** argv) {
     }
   });
 
-  unsigned int n = 10;
+  msg::BroadcastSeqNum num_messages = 10;
   if (parser.configPath()) {
     std::ifstream file(parser.configPath());
     if (!file.is_open()) {
       throw std::runtime_error("couldn't open config file " +
                                std::string(parser.configPath()));
     }
-    file >> n;
+    file >> num_messages;
   }
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
-  unsigned int i = 1;
-  std::size_t subsequent_recvs = n;
-  while (i <= n) {
+  msg::BroadcastSeqNum next_msg = 1;
+  std::size_t subsequent_recvs = num_messages;
+  while (next_msg <= num_messages) {
     std::optional<msg::Message> maybe_msg;
     if (subsequent_recvs > 0 && (maybe_msg = message_queue.try_pop())) {
       subsequent_recvs--;
       link.receive(*maybe_msg);
     } else {
-      subsequent_recvs = n;
-      broadcast.send(i);
-      log.log_broadcast(i);
-      i++;
+      subsequent_recvs = num_messages;
+      broadcast.send(next_msg);
+      log.log_broadcast(next_msg);
+      next_msg++;
     }
   }
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
 
-  const std::size_t total_messages = n * hosts.size();
-  while (log.received_count() < total_messages) {
+  while (true) {
     link.receive(message_queue.pop());
   }
-
-  logger(nullptr).flush();
-  std::cout << id << ": Wrote output.\n\n";
 }
