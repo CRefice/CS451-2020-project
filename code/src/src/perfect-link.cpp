@@ -92,19 +92,6 @@ PerfectLink::Peer::Peer(ProcessId id, FairLossLink& link)
             acknowledged.insert(seq_num(msg));
           }
         }
-        while (!scheduled.empty()) {
-          std::optional<Message> maybe_item = try_pop(incoming, scheduled);
-          if (!maybe_item) {
-            handle_timeout(scheduled, acknowledged, receiver, link);
-            continue;
-          }
-          auto msg = *maybe_item;
-          if (is_syn(msg)) {
-            scheduled.emplace_back(msg);
-          } else {
-            acknowledged.insert(seq_num(msg));
-          }
-        }
       }) {}
 
 PerfectLink::PerfectLink(Parser& parser, FairLossLink& link, Observer& observer)
