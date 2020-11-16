@@ -1,5 +1,8 @@
 #include <chrono>
+#include <queue>
 #include <unordered_set>
+
+#include "exponential-backoff.hpp"
 
 #include "perfect-link.hpp"
 
@@ -24,24 +27,21 @@ static LinkSeqNum seq_num(const Message& msg) {
 }
 
 struct Entry {
-  Entry(Message msg)
-      : msg(msg), retry_time(std::chrono::steady_clock::now() + timeout) {}
   Message msg;
-  std::chrono::steady_clock::duration timeout = std::chrono::milliseconds(100);
-  std::chrono::steady_clock::time_point retry_time;
+  ExponentialBackoff backoff;
 
-  void reset() {
-    timeout += std::chrono::milliseconds(100);
-    retry_time = std::chrono::steady_clock::now() + timeout;
-  }
+  Entry(Message msg) : msg(msg) {}
 
-  friend bool operator<(const Entry& a, const Entry& b) {
-    return a.retry_time < b.retry_time;
+  friend bool operator>(const Entry& a, const Entry& b) {
+    return a.backoff.next_timeout() > b.backoff.next_timeout();
   };
 };
 
+using EntryQueue =
+    std::priority_queue<Entry, std::vector<Entry>, std::greater<>>;
+
 static std::optional<Message> try_pop(ConcurrentQueue<Message>& queue,
-                                      const std::deque<Entry>& scheduled) {
+                                      const EntryQueue& scheduled) {
   if (scheduled.empty()) {
     // Sleep for max 500ms, then bail
     // This is in order to avoid sleeping forever (and thus not terminating)
@@ -50,34 +50,34 @@ static std::optional<Message> try_pop(ConcurrentQueue<Message>& queue,
         std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
     return queue.try_pop_until(timeout);
   }
-  const auto& next = scheduled.front();
-  if (next.retry_time > std::chrono::steady_clock::now()) {
-    return queue.try_pop_until(next.retry_time);
+  const auto retry_time = scheduled.top().backoff.next_timeout();
+  if (retry_time > ExponentialBackoff::Clock::now()) {
+    return queue.try_pop_until(retry_time);
   }
   return std::nullopt;
 }
 
-static void handle_timeout(std::deque<Entry>& scheduled,
+static void handle_timeout(EntryQueue& scheduled,
                            std::unordered_set<LinkSeqNum>& acknowledged,
                            ProcessId receiver, FairLossLink& link) {
   if (scheduled.empty()) {
     return;
   }
-  auto next = scheduled.front();
-  scheduled.pop_front();
+  auto next = scheduled.top();
+  scheduled.pop();
   const auto num = seq_num(next.msg);
   if (acknowledged.find(num) != acknowledged.end()) {
     acknowledged.erase(num);
   } else {
     link.send(receiver, next.msg);
-    next.reset();
-    scheduled.push_back(next);
+    next.backoff.retry();
+    scheduled.push(next);
   }
 }
 
 PerfectLink::Peer::Peer(ProcessId id, FairLossLink& link)
     : sender([this, receiver = id, &link](Task::CancelToken& cancel) {
-        auto scheduled = std::deque<Entry>();
+        auto scheduled = EntryQueue();
         auto acknowledged = std::unordered_set<LinkSeqNum>();
         while (!cancel.load(std::memory_order_relaxed)) {
           std::optional<Message> maybe_item = try_pop(incoming, scheduled);
@@ -87,7 +87,7 @@ PerfectLink::Peer::Peer(ProcessId id, FairLossLink& link)
           }
           auto msg = *maybe_item;
           if (is_syn(msg)) {
-            scheduled.emplace_back(msg);
+            scheduled.push(msg);
           } else {
             acknowledged.insert(seq_num(msg));
           }
