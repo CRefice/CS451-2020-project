@@ -5,7 +5,9 @@
 
 #include "barrier.hpp"
 #include "concurrent-queue.hpp"
+#include "config-parser.hpp"
 #include "fifo-broadcast.hpp"
+#include "localized-causal-broadcast.hpp"
 #include "logger.hpp"
 #include "parser.hpp"
 #include "task.hpp"
@@ -59,30 +61,29 @@ int main(int argc, char** argv) {
   auto barrier = parser.barrier();
   auto signal = parser.signal();
 
+  ConfigParser config(parser.configPath());
+  auto num_messages = config.num_messages();
+
+  std::cout << "#Messages: " << num_messages << '\n';
+
   auto& log = logger(parser.outputPath());
   Coordinator coordinator(id, barrier, signal);
   udp::Socket socket(local_port(parser));
   msg::FairLossLink link(parser, socket);
-  msg::FifoBroadcast broadcast(parser, link, log);
+  msg::LocalizedCausalBroadcast broadcast(config, parser, link, log);
 
   ConcurrentQueue<msg::Message> message_queue;
   auto receiver = Task([&socket, &message_queue](Task::CancelToken& cancel) {
     while (!cancel) {
+      // const auto vector_size = (len - offsetof(msg::Message, vector_clock)) /
+      //                         sizeof(msg::BroadcastSeqNum);
+      // msg.vector_clock.force_set_size(vector_size);
       msg::Message msg{};
       socket.recv(reinterpret_cast<char*>(&msg), sizeof(msg));
       message_queue.push(msg);
     }
   });
 
-  msg::BroadcastSeqNum num_messages = 10;
-  if (parser.configPath()) {
-    std::ifstream file(parser.configPath());
-    if (!file.is_open()) {
-      throw std::runtime_error("couldn't open config file " +
-                               std::string(parser.configPath()));
-    }
-    file >> num_messages;
-  }
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
@@ -103,7 +104,14 @@ int main(int argc, char** argv) {
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
 
-  while (true) {
+  auto to_receive = num_messages * hosts.size();
+  while (log.received_count() < to_receive) {
     link.receive(message_queue.pop());
+  }
+
+  std::cout << id << " finished receiving.\n";
+  logger(nullptr).flush();
+
+  while (true) {
   }
 }

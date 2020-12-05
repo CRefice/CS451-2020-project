@@ -24,8 +24,8 @@ public:
     send(dst_addr, reinterpret_cast<const char*>(&val), sizeof(T));
   }
 
-  std::optional<sockaddr_in> try_recv(char* buf, std::size_t len);
-  sockaddr_in recv(char* buf, std::size_t len);
+  std::optional<std::size_t> try_recv(char* buf, std::size_t len);
+  std::size_t recv(char* buf, std::size_t len);
 
 private:
   int fd = 0;

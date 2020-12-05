@@ -6,7 +6,7 @@
 
 #include "message.hpp"
 
-template <typename T, typename Index = unsigned int,
+template <typename T, typename Index,
           typename = std::enable_if_t<std::is_integral_v<Index>>>
 class MonotonicQueue {
 public:

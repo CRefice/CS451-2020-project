@@ -17,8 +17,7 @@ UniformReliableBroadcast::UniformReliableBroadcast(Parser& parser,
       pending(num_processes), delivered(num_processes), bc(parser, link, *this),
       observer(observer) {}
 
-void UniformReliableBroadcast::send(BroadcastSeqNum seq_num) {
-  Message msg{};
+void UniformReliableBroadcast::send(BroadcastSeqNum seq_num, Message msg) {
   msg.originator = id;
   msg.bcast_seq_num = seq_num;
   insert(pending, msg);

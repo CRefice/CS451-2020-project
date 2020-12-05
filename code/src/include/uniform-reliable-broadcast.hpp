@@ -11,7 +11,7 @@ public:
   UniformReliableBroadcast(Parser& parser, FairLossLink& link,
                            Observer& observer);
 
-  void send(BroadcastSeqNum seq_num);
+  void send(BroadcastSeqNum seq_num, Message msg);
 
 private:
   bool can_deliver(const Message& msg);

@@ -7,7 +7,7 @@ FifoBroadcast::FifoBroadcast(Parser& parser, FairLossLink& link,
       observer(observer) {}
 
 void FifoBroadcast::send(BroadcastSeqNum sequence_num) {
-  bc.send(sequence_num);
+  bc.send(sequence_num, Message{});
 }
 
 void FifoBroadcast::deliver(const Message& msg) {

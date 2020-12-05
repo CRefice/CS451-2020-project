@@ -52,31 +52,27 @@ void Socket::send(const sockaddr_in& dst_addr, const char* buf,
   }
 }
 
-std::optional<sockaddr_in> Socket::try_recv(char* buf, std::size_t len) {
+std::optional<std::size_t> Socket::try_recv(char* buf, std::size_t len) {
   // Do not block and wait for a message if it's not available,
   // instead simply return std::nullopt.
   static constexpr int flags = MSG_DONTWAIT;
-  sockaddr_in src_addr{};
-  socklen_t addr_len = sizeof(src_addr);
-  if (recvfrom(fd, buf, len, flags, reinterpret_cast<sockaddr*>(&src_addr),
-               &addr_len) < 0) {
+  const auto recv_len = recvfrom(fd, buf, len, flags, nullptr, nullptr);
+  if (recv_len < 0) {
     if (errno == EWOULDBLOCK) {
       return std::nullopt;
     }
     throw std::runtime_error(std::string("failed to receive message: ") +
                              std::strerror(errno));
   }
-  return src_addr;
+  return std::size_t(recv_len);
 }
 
-sockaddr_in Socket::recv(char* buf, std::size_t len) {
-  sockaddr_in src_addr{};
-  socklen_t addr_len = sizeof(src_addr);
-  if (recvfrom(fd, buf, len, 0, reinterpret_cast<sockaddr*>(&src_addr),
-               &addr_len) < 0) {
+std::size_t Socket::recv(char* buf, std::size_t len) {
+  const auto recv_len = recvfrom(fd, buf, len, 0, nullptr, nullptr);
+  if (recv_len < 0) {
     throw std::runtime_error(std::string("failed to receive message: ") +
                              std::strerror(errno));
   }
-  return src_addr;
+  return std::size_t(recv_len);
 }
 } // namespace udp

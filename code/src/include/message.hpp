@@ -1,22 +1,30 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <unordered_map>
-#include <unordered_set>
+
+#include "static-vec.hpp"
 
 namespace msg {
+inline constexpr std::uint8_t MAX_PROCESSES = 128;
+
 using LinkSeqNum = std::uint64_t;
 using BroadcastSeqNum = std::uint32_t;
 using ProcessId = std::uint8_t;
+using VectorClock = StaticVec<BroadcastSeqNum, MAX_PROCESSES>;
 
-inline constexpr std::uint8_t MAX_PROCESSES = 128;
-
-class Message {
-public:
+struct Message {
   LinkSeqNum link_seq_num;
   BroadcastSeqNum bcast_seq_num;
   ProcessId originator, sender;
+  VectorClock vector_clock;
+
+  std::size_t size_bytes() const noexcept {
+    return offsetof(Message, vector_clock) +
+           sizeof(BroadcastSeqNum) * vector_clock.size();
+  }
 };
 
 struct BroacastMessageHash {
@@ -36,9 +44,6 @@ struct BroacastMessageCompare {
 template <typename T>
 using BroadcastMessageHashMap =
     std::unordered_map<Message, T, BroacastMessageHash, BroacastMessageCompare>;
-
-using BroadcastMessageHashSet =
-    std::unordered_set<Message, BroacastMessageHash, BroacastMessageCompare>;
 
 class Observer {
 public:
