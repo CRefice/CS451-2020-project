@@ -75,11 +75,11 @@ int main(int argc, char** argv) {
   ConcurrentQueue<msg::Message> message_queue;
   auto receiver = Task([&socket, &message_queue](Task::CancelToken& cancel) {
     while (!cancel) {
-      // const auto vector_size = (len - offsetof(msg::Message, vector_clock)) /
-      //                         sizeof(msg::BroadcastSeqNum);
-      // msg.vector_clock.force_set_size(vector_size);
       msg::Message msg{};
-      socket.recv(reinterpret_cast<char*>(&msg), sizeof(msg));
+      auto len = socket.recv(reinterpret_cast<char*>(&msg), sizeof(msg));
+      const auto vector_size = (len - offsetof(msg::Message, vector_clock)) /
+                               sizeof(msg::BroadcastSeqNum);
+      msg.vector_clock.force_set_size(vector_size);
       message_queue.push(msg);
     }
   });

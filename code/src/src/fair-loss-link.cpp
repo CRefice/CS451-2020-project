@@ -13,7 +13,15 @@ void FairLossLink::connect(Observer* o) { obs = o; }
 
 void FairLossLink::send(ProcessId receiver, Message msg) {
   msg.sender = id;
-  socket.send(addrs[receiver - 1], msg);
+
+  const auto size = msg.size_bytes();
+  // We're doing something really unsafe and dangerous here:
+  // we rely on the ordering of the members of StaticVec to reinterpret
+  // the message struct as a char vector of unknown (but bounded) size. Freaky!
+  // Note that this is okay since the C standard specifies that the first member
+  // of a struct may not be padded.
+  const char* buf = reinterpret_cast<const char*>(&msg);
+  socket.send(addrs[receiver - 1], buf, size);
 }
 
 void FairLossLink::receive(const Message& msg) { obs->deliver(msg); }
