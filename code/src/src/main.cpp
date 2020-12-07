@@ -110,7 +110,6 @@ int main(int argc, char** argv) {
   }
 
   std::cout << id << " finished receiving.\n";
-  logger(nullptr).flush();
 
   while (true) {
   }

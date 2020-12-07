@@ -23,7 +23,6 @@ private:
   std::vector<ConfigParser::Dependency> deps;
   std::vector<Message> pending;
 
-  BroadcastSeqNum lsn = 0;
   VectorClock current_clock;
 
   UniformReliableBroadcast bc;

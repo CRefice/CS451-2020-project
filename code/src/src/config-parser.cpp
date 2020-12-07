@@ -17,6 +17,10 @@ void ConfigParser::parse(std::ifstream& file) {
   while (std::getline(file, line)) {
     parse_dependency(line);
   }
+  std::sort(deps.begin(), deps.end(),
+            [](const Dependency& a, const Dependency& b) {
+              return a.process < b.process;
+            });
 }
 
 void ConfigParser::parse_message_num(const std::string& line) {
@@ -26,10 +30,12 @@ void ConfigParser::parse_message_num(const std::string& line) {
 
 void ConfigParser::parse_dependency(const std::string& line) {
   std::istringstream iss(line);
+  int process{};
+  iss >> process;
   Dependency dep;
-  iss >> dep.process;
-  msg::ProcessId process{};
+  dep.process = static_cast<msg::ProcessId>(process);
   while (iss >> process) {
-    dep.depends.push_back(process);
+    dep.depends.push_back(static_cast<msg::ProcessId>(process));
   }
+  deps.push_back(dep);
 }

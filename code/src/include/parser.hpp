@@ -23,7 +23,7 @@ class Parser {
 public:
   struct Host {
     Host() {}
-    Host(size_t id, std::string &ip_or_hostname, unsigned short port)
+    Host(size_t id, std::string& ip_or_hostname, unsigned short port)
         : id{id}, port{htons(port)} {
 
       if (isValidIpAddress(ip_or_hostname.c_str())) {
@@ -46,16 +46,16 @@ public:
     unsigned short port;
 
   private:
-    bool isValidIpAddress(const char *ipAddress) {
+    bool isValidIpAddress(const char* ipAddress) {
       struct sockaddr_in sa;
       int result = inet_pton(AF_INET, ipAddress, &(sa.sin_addr));
       return result != 0;
     }
 
-    in_addr_t ipLookup(const char *host) {
+    in_addr_t ipLookup(const char* host) {
       struct addrinfo hints, *res;
       char addrstr[128];
-      void *ptr;
+      void* ptr;
 
       memset(&hints, 0, sizeof(hints));
       hints.ai_family = PF_UNSPEC;
@@ -74,7 +74,7 @@ public:
         switch (res->ai_family) {
         case AF_INET:
           ptr =
-              &(reinterpret_cast<struct sockaddr_in *>(res->ai_addr))->sin_addr;
+              &(reinterpret_cast<struct sockaddr_in*>(res->ai_addr))->sin_addr;
           inet_ntop(res->ai_family, ptr, addrstr, 128);
           return inet_addr(addrstr);
           break;
@@ -92,7 +92,7 @@ public:
   };
 
 public:
-  Parser(const int argc, char const *const *argv, bool withConfig)
+  Parser(const int argc, char const* const* argv, bool withConfig)
       : argc{argc}, argv{argv}, withConfig{withConfig}, parsed{false} {}
 
   void parse() {
@@ -108,7 +108,7 @@ public:
     return id_;
   }
 
-  const char *hostsPath() const {
+  const char* hostsPath() const {
     checkParsed();
     return hostsPath_.c_str();
   }
@@ -123,12 +123,12 @@ public:
     return signal_;
   }
 
-  const char *outputPath() const {
+  const char* outputPath() const {
     checkParsed();
     return outputPath_.c_str();
   }
 
-  const char *configPath() const {
+  const char* configPath() const {
     checkParsed();
     if (!withConfig) {
       throw std::runtime_error("Parser is configure to ignore the config path");
@@ -178,7 +178,7 @@ public:
       throw std::invalid_argument(os.str());
     }
 
-    auto comp = [](const Host &x, const Host &y) { return x.id < y.id; };
+    auto comp = [](const Host& x, const Host& y) { return x.id < y.id; };
     auto result = std::minmax_element(hosts.begin(), hosts.end(), comp);
     size_t minID = (*result.first).id;
     size_t maxID = (*result.second).id;
@@ -190,7 +190,7 @@ public:
     }
 
     std::sort(hosts.begin(), hosts.end(),
-              [](const Host &a, const Host &b) -> bool { return a.id < b.id; });
+              [](const Host& a, const Host& b) -> bool { return a.id < b.id; });
 
     return hosts;
   }
@@ -224,10 +224,11 @@ private:
     return true;
   }
 
-  void help(const int, char const *const *argv) {
+  void help(const int, char const* const* argv) {
     auto configStr = "CONFIG";
     std::cerr << "Usage: " << argv[0]
-              << " --id ID --hosts HOSTS --barrier NAME:PORT --signal NAME:PORT --output OUTPUT";
+              << " --id ID --hosts HOSTS --barrier NAME:PORT --signal "
+                 "NAME:PORT --output OUTPUT";
 
     if (!withConfig) {
       std::cerr << "\n";
@@ -247,9 +248,9 @@ private:
       if (isPositiveNumber(argv[2])) {
         try {
           id_ = std::stoul(argv[2]);
-        } catch (std::invalid_argument const &e) {
+        } catch (std::invalid_argument const& e) {
           return false;
-        } catch (std::out_of_range const &e) {
+        } catch (std::out_of_range const& e) {
           return false;
         }
 
@@ -345,7 +346,7 @@ private:
     return true;
   }
 
-  bool isPositiveNumber(const std::string &s) const {
+  bool isPositiveNumber(const std::string& s) const {
     return !s.empty() && std::find_if(s.begin(), s.end(), [](unsigned char c) {
                            return !std::isdigit(c);
                          }) == s.end();
@@ -357,26 +358,26 @@ private:
     }
   }
 
-  void ltrim(std::string &s) {
+  void ltrim(std::string& s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(),
                                     [](int ch) { return !std::isspace(ch); }));
   }
 
-  void rtrim(std::string &s) {
+  void rtrim(std::string& s) {
     s.erase(std::find_if(s.rbegin(), s.rend(),
                          [](int ch) { return !std::isspace(ch); })
                 .base(),
             s.end());
   }
 
-  void trim(std::string &s) {
+  void trim(std::string& s) {
     ltrim(s);
     rtrim(s);
   }
 
 private:
   const int argc;
-  char const *const *argv;
+  char const* const* argv;
   bool withConfig;
 
   bool parsed;
