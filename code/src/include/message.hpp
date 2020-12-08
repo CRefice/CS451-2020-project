@@ -21,7 +21,7 @@ struct Message {
   ProcessId originator, sender;
   VectorClock vector_clock;
 
-  std::size_t size_bytes() const noexcept {
+  [[nodiscard]] std::size_t size_bytes() const noexcept {
     return offsetof(Message, vector_clock) +
            sizeof(BroadcastSeqNum) * vector_clock.size();
   }

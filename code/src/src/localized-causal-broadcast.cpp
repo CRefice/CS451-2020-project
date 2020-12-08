@@ -12,7 +12,7 @@ LocalizedCausalBroadcast::LocalizedCausalBroadcast(ConfigParser& config,
                                                    Parser& parser,
                                                    FairLossLink& link,
                                                    Observer& observer)
-    : id(static_cast<ProcessId>(parser.id())), deps(config.dependencies()),
+    : id(parser.index()), deps(config.dependencies()),
       current_clock(parser.hosts().size()), bc(parser, link, *this),
       observer(observer) {}
 
@@ -22,9 +22,9 @@ void LocalizedCausalBroadcast::send(BroadcastSeqNum sequence_num) {
   std::cerr << "V=";
   print_vector_clock(current_clock);
 
-  const auto& my_deps = deps[id - 1];
+  const auto& my_deps = deps[id];
   for (ProcessId process : my_deps.depends) {
-    msg.vector_clock.push_back(current_clock[process - 1]);
+    msg.vector_clock.push_back(current_clock[process]);
   }
 
   std::cerr << "sent " << sequence_num << " with W=";
@@ -34,14 +34,14 @@ void LocalizedCausalBroadcast::send(BroadcastSeqNum sequence_num) {
 }
 
 bool LocalizedCausalBroadcast::can_deliver(const Message& msg) {
-  if (msg.bcast_seq_num - 1 > current_clock[msg.originator - 1]) {
+  if (msg.bcast_seq_num > current_clock[msg.originator]) {
     return false;
   }
 
-  const auto& depends = deps[msg.originator - 1].depends;
+  const auto& depends = deps[msg.originator].depends;
   for (auto i = 0ul; i < msg.vector_clock.size(); ++i) {
     auto process_id = depends[i];
-    if (msg.vector_clock[i] > current_clock[process_id - 1]) {
+    if (msg.vector_clock[i] > current_clock[process_id]) {
       return false;
     }
   }
@@ -62,7 +62,7 @@ void LocalizedCausalBroadcast::deliver(const Message& msg) {
                 << +to_deliver.originator << " with W= ";
       print_vector_clock(to_deliver.vector_clock);
 
-      current_clock[to_deliver.originator - 1]++;
+      current_clock[to_deliver.originator]++;
       observer.deliver(to_deliver);
       pending.erase(it);
       it = pending.begin();

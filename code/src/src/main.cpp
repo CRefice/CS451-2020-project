@@ -87,9 +87,9 @@ int main(int argc, char** argv) {
   std::cout << "Waiting for all processes to finish initialization\n\n";
   coordinator.waitOnBarrier();
 
-  msg::BroadcastSeqNum next_msg = 1;
+  msg::BroadcastSeqNum next_msg = 0;
   std::size_t subsequent_recvs = num_messages;
-  while (next_msg <= num_messages) {
+  while (next_msg < num_messages) {
     std::optional<msg::Message> maybe_msg;
     if (subsequent_recvs > 0 && (maybe_msg = message_queue.try_pop())) {
       subsequent_recvs--;

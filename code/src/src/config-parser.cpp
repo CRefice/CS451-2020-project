@@ -35,7 +35,7 @@ void ConfigParser::parse_dependency(const std::string& line) {
   Dependency dep;
   dep.process = static_cast<msg::ProcessId>(process);
   while (iss >> process) {
-    dep.depends.push_back(static_cast<msg::ProcessId>(process));
+    dep.depends.push_back(static_cast<msg::ProcessId>(process - 1));
   }
   deps.push_back(dep);
 }

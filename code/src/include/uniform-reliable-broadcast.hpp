@@ -11,7 +11,7 @@ public:
   UniformReliableBroadcast(Parser& parser, FairLossLink& link,
                            Observer& observer);
 
-  void send(BroadcastSeqNum seq_num, Message msg);
+  void send(BroadcastSeqNum seq_num, Message& msg);
 
 private:
   bool can_deliver(const Message& msg);
@@ -19,7 +19,7 @@ private:
   void deliver(const Message& msg) override;
 
   ProcessId id;
-  std::uint8_t num_processes;
+  std::size_t num_processes;
   BroadcastMessageHashMap<std::bitset<MAX_PROCESSES>> ack;
   std::vector<RollingBitset> pending, delivered;
   BestEffortBroadcast bc;

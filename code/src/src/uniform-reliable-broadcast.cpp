@@ -2,22 +2,21 @@
 
 namespace msg {
 static void insert(std::vector<RollingBitset>& set, const msg::Message& msg) {
-  set[msg.originator - 1].insert(msg.bcast_seq_num - 1);
+  set[msg.originator].insert(msg.bcast_seq_num);
 }
 
 static bool contains(std::vector<RollingBitset>& set, const msg::Message& msg) {
-  return set[msg.originator - 1].contains(msg.bcast_seq_num - 1);
+  return set[msg.originator].contains(msg.bcast_seq_num);
 }
 
 UniformReliableBroadcast::UniformReliableBroadcast(Parser& parser,
                                                    FairLossLink& link,
                                                    Observer& observer)
-    : id(static_cast<ProcessId>(parser.id())),
-      num_processes(static_cast<std::uint8_t>(parser.hosts().size())),
+    : id(parser.index()), num_processes(parser.hosts().size()),
       pending(num_processes), delivered(num_processes), bc(parser, link, *this),
       observer(observer) {}
 
-void UniformReliableBroadcast::send(BroadcastSeqNum seq_num, Message msg) {
+void UniformReliableBroadcast::send(BroadcastSeqNum seq_num, Message& msg) {
   msg.originator = id;
   msg.bcast_seq_num = seq_num;
   insert(pending, msg);
@@ -37,9 +36,10 @@ void UniformReliableBroadcast::try_deliver(const Message& msg) {
 }
 
 void UniformReliableBroadcast::deliver(const Message& msg) {
-  ack[msg].set(msg.sender - 1);
+  ack[msg].set(msg.sender);
   if (!contains(pending, msg)) {
-    bc.send(msg);
+    auto copy = msg;
+    bc.send(copy);
   }
   insert(pending, msg);
   try_deliver(msg);

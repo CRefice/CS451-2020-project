@@ -11,7 +11,7 @@ class FairLossLink {
 public:
   FairLossLink(Parser& parser, udp::Socket& socket);
 
-  void send(ProcessId receiver, Message msg);
+  void send(ProcessId receiver, Message& msg);
   void receive(const Message& msg);
 
   void connect(Observer* obs);

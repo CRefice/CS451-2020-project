@@ -7,12 +7,12 @@ class BestEffortBroadcast : public Observer {
 public:
   BestEffortBroadcast(Parser& parser, FairLossLink& link, Observer& observer);
 
-  void send(Message msg);
+  void send(Message& msg);
 
 private:
   void deliver(const Message& msg) override;
 
-  void create_n_connected_ring(ProcessId n);
+  void create_n_connected_ring(std::size_t n);
 
   std::vector<ProcessId> connections;
   ProcessId id;

@@ -19,11 +19,11 @@ void Logger::flush() {
 }
 
 void Logger::log_broadcast(msg::BroadcastSeqNum seq_num) {
-  buffer << "b " << seq_num << '\n';
+  buffer << "b " << seq_num + 1 << '\n';
 }
 
 void Logger::deliver(const msg::Message& msg) {
-  buffer << "d " << +msg.originator << ' ' << msg.bcast_seq_num << '\n';
+  buffer << "d " << msg.originator + 1 << ' ' << msg.bcast_seq_num + 1 << '\n';
   count++;
   try_flush();
 }

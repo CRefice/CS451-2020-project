@@ -95,23 +95,23 @@ PerfectLink::Peer::Peer(ProcessId id, FairLossLink& link)
       }) {}
 
 PerfectLink::PerfectLink(Parser& parser, FairLossLink& link, Observer& observer)
-    : id(static_cast<ProcessId>(parser.id())), link(link), observer(observer) {
+    : id(parser.index()), link(link), observer(observer) {
   link.connect(this);
   for (const auto& host : parser.hosts()) {
-    peers.emplace_back(static_cast<ProcessId>(host.id), link);
+    peers.emplace_back(host.index(), link);
   }
 }
 
-void PerfectLink::send(ProcessId receiver, Message msg) {
-  auto& peer = peers[receiver - 1];
+void PerfectLink::send(ProcessId receiver, Message& msg) {
+  auto& peer = peers[receiver];
   msg.link_seq_num = peer.next_seq_num++;
   msg.sender = id;
-  link.send(receiver, msg);
   peer.incoming.push(msg);
+  link.send(receiver, msg);
 }
 
 void PerfectLink::deliver(const Message& msg) {
-  auto& peer = peers[msg.sender - 1];
+  auto& peer = peers[msg.sender];
   if (!is_syn(msg)) {
     peer.incoming.push(msg);
     return;
@@ -121,6 +121,7 @@ void PerfectLink::deliver(const Message& msg) {
     peer.delivered.insert(num);
     observer.deliver(msg);
   }
-  link.send(msg.sender, set_ack(msg));
+  auto ack = set_ack(msg);
+  link.send(msg.sender, ack);
 }
 } // namespace msg

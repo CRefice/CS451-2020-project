@@ -7,12 +7,13 @@ FifoBroadcast::FifoBroadcast(Parser& parser, FairLossLink& link,
       observer(observer) {}
 
 void FifoBroadcast::send(BroadcastSeqNum sequence_num) {
-  bc.send(sequence_num, Message{});
+  auto msg = Message{};
+  bc.send(sequence_num, msg);
 }
 
 void FifoBroadcast::deliver(const Message& msg) {
-  auto& queue = ordered[msg.originator - 1];
-  queue.add(msg, msg.bcast_seq_num - 1);
+  auto& queue = ordered[msg.originator];
+  queue.add(msg, msg.bcast_seq_num);
   while (queue.has_next()) {
     auto item = queue.pop_next();
     observer.deliver(item);

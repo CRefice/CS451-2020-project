@@ -13,7 +13,7 @@ class PerfectLink : public Observer {
 public:
   PerfectLink(Parser& parser, FairLossLink& link, Observer& observer);
 
-  void send(ProcessId receiver, Message msg);
+  void send(ProcessId receiver, Message& msg);
   void deliver(const Message& msg) override;
 
 private:

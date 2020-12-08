@@ -33,6 +33,8 @@ public:
       }
     }
 
+    unsigned char index() const { return static_cast<unsigned char>(id - 1); }
+
     std::string ipReadable() const {
       in_addr tmp_ip;
       tmp_ip.s_addr = ip;
@@ -101,6 +103,11 @@ public:
     }
 
     parsed = true;
+  }
+
+  unsigned char index() const {
+    checkParsed();
+    return static_cast<unsigned char>(id_ - 1);
   }
 
   unsigned long id() const {
