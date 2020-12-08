@@ -106,6 +106,13 @@ void PerfectLink::send(ProcessId receiver, Message& msg) {
   auto& peer = peers[receiver];
   msg.link_seq_num = peer.next_seq_num++;
   msg.sender = id;
+  // If receiver is self, just deliver directly to observer,
+  // no need to add other checks
+  if (msg.sender == receiver) {
+    observer.deliver(msg);
+    return;
+  }
+
   peer.incoming.push(msg);
   link.send(receiver, msg);
 }

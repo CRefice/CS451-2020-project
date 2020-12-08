@@ -39,9 +39,10 @@ void UniformReliableBroadcast::deliver(const Message& msg) {
   ack[msg].set(msg.sender);
   if (!contains(pending, msg)) {
     auto copy = msg;
+    // Need to insert before sending to avoid infinite recursion
+    insert(pending, copy);
     bc.send(copy);
   }
-  insert(pending, msg);
   try_deliver(msg);
 }
 } // namespace msg
