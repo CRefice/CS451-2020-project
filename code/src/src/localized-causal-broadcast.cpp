@@ -1,13 +1,6 @@
 #include "localized-causal-broadcast.hpp"
 
 namespace msg {
-static void print_vector_clock(const VectorClock& c) {
-  for (const auto& item : c) {
-    std::cerr << item << ',';
-  }
-  std::cerr << '\n';
-}
-
 LocalizedCausalBroadcast::LocalizedCausalBroadcast(ConfigParser& config,
                                                    Parser& parser,
                                                    FairLossLink& link,
@@ -19,16 +12,10 @@ LocalizedCausalBroadcast::LocalizedCausalBroadcast(ConfigParser& config,
 void LocalizedCausalBroadcast::send(BroadcastSeqNum sequence_num) {
   Message msg{};
 
-  std::cerr << "V=";
-  print_vector_clock(current_clock);
-
   const auto& my_deps = deps[id];
   for (ProcessId process : my_deps.depends) {
     msg.vector_clock.push_back(current_clock[process]);
   }
-
-  std::cerr << "sent " << sequence_num << " with W=";
-  print_vector_clock(msg.vector_clock);
 
   bc.send(sequence_num, msg);
 }
@@ -49,22 +36,14 @@ bool LocalizedCausalBroadcast::can_deliver(const Message& msg) {
 }
 
 void LocalizedCausalBroadcast::deliver(const Message& msg) {
-  std::cerr << "Got " << msg.bcast_seq_num << " from " << +msg.originator
-            << " with W= ";
-  print_vector_clock(msg.vector_clock);
-
   pending.push_back(msg);
-
   for (auto it = pending.begin(); it != pending.end();) {
-    const auto& to_deliver = *it;
+    auto& to_deliver = *it;
     if (can_deliver(to_deliver)) {
-      std::cerr << "Delivered " << to_deliver.bcast_seq_num << " from "
-                << +to_deliver.originator << " with W= ";
-      print_vector_clock(to_deliver.vector_clock);
-
       current_clock[to_deliver.originator]++;
       observer.deliver(to_deliver);
-      pending.erase(it);
+      std::swap(to_deliver, pending.back());
+      pending.pop_back();
       it = pending.begin();
     } else {
       ++it;
