@@ -10,6 +10,7 @@ class Task {
 public:
   using CancelToken = std::atomic<bool>;
 
+  Task() = default;
   template <typename Fn,
             typename = std::enable_if_t<std::is_invocable_v<Fn, CancelToken&>>>
   Task(Fn&& fn)

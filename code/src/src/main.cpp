@@ -64,8 +64,6 @@ int main(int argc, char** argv) {
   ConfigParser config(parser.configPath());
   auto num_messages = config.num_messages();
 
-  std::cout << "#Messages: " << num_messages << '\n';
-
   auto& log = logger(parser.outputPath());
   Coordinator coordinator(id, barrier, signal);
   udp::Socket socket(local_port(parser));

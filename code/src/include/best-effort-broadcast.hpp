@@ -12,10 +12,9 @@ public:
 private:
   void deliver(const Message& msg) override;
 
-  void create_n_connected_ring(std::size_t n);
-
-  std::vector<ProcessId> connections;
   ProcessId id;
+  std::vector<ProcessId> connections;
+
   PerfectLink link;
   Observer& observer;
 };

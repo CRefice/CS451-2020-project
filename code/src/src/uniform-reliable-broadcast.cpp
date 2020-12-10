@@ -24,18 +24,23 @@ void UniformReliableBroadcast::send(BroadcastSeqNum seq_num, Message& msg) {
 }
 
 bool UniformReliableBroadcast::can_deliver(const Message& msg) {
-  return ack[msg].count() > (num_processes / 2) && contains(pending, msg) &&
-         !contains(delivered, msg);
+  return !contains(delivered, msg) && ack[msg].count() > (num_processes / 2) &&
+         contains(pending, msg);
 }
 
 void UniformReliableBroadcast::try_deliver(const Message& msg) {
-  if (can_deliver(msg)) {
+  if (ack[msg].count() > (num_processes / 2)) {
     insert(delivered, msg);
+    ack.erase(msg);
     observer.deliver(msg);
   }
 }
 
 void UniformReliableBroadcast::deliver(const Message& msg) {
+  if (contains(delivered, msg)) {
+    return;
+  }
+
   ack[msg].set(msg.sender);
   if (!contains(pending, msg)) {
     auto copy = msg;

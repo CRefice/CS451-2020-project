@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <queue>
 #include <unordered_set>
@@ -19,6 +20,7 @@ static bool is_syn(const Message& msg) {
 
 static Message set_ack(Message msg) {
   msg.link_seq_num |= SEQ_NUM_MSB;
+  msg.vector_clock.force_set_size(0);
   return msg;
 }
 
