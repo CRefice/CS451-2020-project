@@ -103,11 +103,7 @@ int main(int argc, char** argv) {
   std::cout << "Signaling end of broadcasting messages\n\n";
   coordinator.finishedBroadcasting();
 
-  auto to_receive = num_messages * hosts.size();
-  while (log.received_count() < to_receive) {
-    link.receive(message_queue.pop());
-  }
-
   while (true) {
+    link.receive(message_queue.pop());
   }
 }
