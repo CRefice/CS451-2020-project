@@ -250,6 +250,8 @@ class LCausalBroadcastValidation(Validation):
 
     def checkProcess(self, pid):
         deps = self.createMessageDependencies(pid)
+        if deps is False:
+            return False
 
         for process in range(1, self.processes + 1):
             if process == pid:
@@ -657,9 +659,9 @@ if __name__ == "__main__":
     testConfig = {
         # Network configuration using the tc command
         "TC": {
-            "delay": ("1ms", "1ms"),
-            "loss": ("1%", "1%"),
-            "reordering": ("2%", "2%"),
+            "delay": ("200ms", "50ms"),
+            "loss": ("10%", "25%"),
+            "reordering": ("25%", "50%"),
         },
         # StressTest configuration
         "ST": {

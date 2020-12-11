@@ -21,7 +21,7 @@ private:
 
   ProcessId id;
   std::vector<ConfigParser::Dependency> deps;
-  std::vector<Message> pending;
+  std::vector<BroadcastMessageHeap> pending;
 
   VectorClock current_clock;
 

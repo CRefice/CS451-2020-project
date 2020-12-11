@@ -6,8 +6,8 @@ LocalizedCausalBroadcast::LocalizedCausalBroadcast(ConfigParser& config,
                                                    FairLossLink& link,
                                                    Observer& observer)
     : id(parser.index()), deps(config.dependencies()),
-      current_clock(parser.hosts().size()), bc(parser, link, *this),
-      observer(observer) {}
+      pending(parser.hosts().size()), current_clock(pending.size()),
+      bc(parser, link, *this), observer(observer) {}
 
 void LocalizedCausalBroadcast::send(BroadcastSeqNum sequence_num) {
   Message msg{};
@@ -36,14 +36,14 @@ bool LocalizedCausalBroadcast::can_deliver(const Message& msg) {
 }
 
 void LocalizedCausalBroadcast::deliver(const Message& msg) {
-  pending.push_back(msg);
+  pending[msg.originator].push(msg);
   for (auto it = pending.begin(); it != pending.end();) {
-    auto& to_deliver = *it;
-    if (can_deliver(to_deliver)) {
-      current_clock[to_deliver.originator]++;
-      observer.deliver(to_deliver);
-      std::swap(to_deliver, pending.back());
-      pending.pop_back();
+    auto& queue = *it;
+    if (!queue.empty() && can_deliver(queue.top())) {
+      const auto& msg = queue.top();
+      current_clock[msg.originator]++;
+      observer.deliver(msg);
+      queue.pop();
       it = pending.begin();
     } else {
       ++it;

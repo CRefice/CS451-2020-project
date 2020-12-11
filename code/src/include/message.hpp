@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <queue>
 #include <unordered_map>
 
 #include "static-vec.hpp"
@@ -27,7 +28,7 @@ struct Message {
   }
 };
 
-struct BroacastMessageHash {
+struct BroadcastMessageHash {
   std::size_t operator()(const Message& m) const noexcept {
     std::size_t h1 = std::hash<BroadcastSeqNum>{}(m.bcast_seq_num);
     std::size_t h2 = std::hash<ProcessId>{}(m.originator);
@@ -35,15 +36,25 @@ struct BroacastMessageHash {
   }
 };
 
-struct BroacastMessageCompare {
+struct BroadcastMessageCompare {
   bool operator()(const Message& a, const Message& b) const noexcept {
     return a.bcast_seq_num == b.bcast_seq_num && a.originator == b.originator;
   }
 };
 
+struct BroadcastMessageOrder {
+  bool operator()(const Message& a, const Message& b) const noexcept {
+    return a.bcast_seq_num > b.bcast_seq_num;
+  }
+};
+
 template <typename T>
 using BroadcastMessageHashMap =
-    std::unordered_map<Message, T, BroacastMessageHash, BroacastMessageCompare>;
+    std::unordered_map<Message, T, BroadcastMessageHash,
+                       BroadcastMessageCompare>;
+
+using BroadcastMessageHeap =
+    std::priority_queue<Message, std::vector<Message>, BroadcastMessageOrder>;
 
 class Observer {
 public:
